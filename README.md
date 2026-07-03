@@ -36,20 +36,6 @@ This creates a more lively outdoor atmosphere without requiring players or admin
 3. Start or restart your Paper/Spigot server.
 4. The plugin will begin working automatically after the server finishes loading.
 
-## Usage
-This plugin does **not currently provide any commands or permissions**.
-
-After installation, usage is automatic:
-- Start the server with the plugin installed.
-- Go to areas with trees, flowers, or moving mobs/players.
-- The plugin will spawn ambient particle effects automatically.
-
 ## Compatibility
 - Paper 1.21.11
 - Spigot-compatible servers using the Paper API level declared by the plugin
-
-## Developer Notes
-The plugin entry point is `com.Main` and it loads after the world is available (`POSTWORLD`). It applies effects to living entities in loaded worlds on a repeating scheduler.
-
-## License
-Released under the **MIT License**. See `LICENSE.txt` for details.
