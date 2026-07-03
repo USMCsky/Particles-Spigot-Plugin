@@ -1,0 +1,14 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\gradle",
+    "\\gradle\\wrapper",
+    "\\src",
+    "\\src\\main",
+    "\\src\\main\\java",
+    "\\src\\main\\java\\com",
+    "\\src\\main\\resources"
+  ],
+  "SelectedNode": "\\gradle\\wrapper\\gradle-wrapper.jar",
+  "PreviewInSolutionExplorer": false
+}
