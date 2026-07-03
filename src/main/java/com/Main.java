@@ -21,6 +21,8 @@ public final class Main extends JavaPlugin {
 
     private static final BlockData LEAF_DUST = Material.OAK_LEAVES.createBlockData();
     private static final double MOVE_THRESHOLD_SQUARED = 0.0036D;
+    private static final double TREE_PARTICLE_CHANCE = 0.55D;
+    private static final double FLOWER_PARTICLE_CHANCE = 0.60D;
     private static final Particle.DustOptions DEFAULT_FLOWER_DUST = new Particle.DustOptions(Color.fromRGB(255, 170, 210), 1.0F);
     private static final Map<Material, Particle.DustOptions> FLOWER_DUST = createFlowerDustMap();
 
@@ -35,22 +37,24 @@ public final class Main extends JavaPlugin {
 
                     Location base = entity.getLocation();
 
-                    if (isUnderLeaves(base)) {
-                        Location leaves = base.clone().add(0.0, 2.2, 0.0);
-                        world.spawnParticle(Particle.FALLING_DUST, leaves, 2, 0.6, 0.2, 0.6, 0.0, LEAF_DUST);
+                    if (ThreadLocalRandom.current().nextDouble() < TREE_PARTICLE_CHANCE) {
+                        Block nearbyLeaves = findNearbyLeaves(base);
+                        if (nearbyLeaves != null) {
+                            spawnTreeParticles(world, nearbyLeaves.getLocation().add(0.5, 0.8, 0.5));
+                        }
                     }
 
-                    if (ThreadLocalRandom.current().nextDouble() < 0.35D) {
+                    if (ThreadLocalRandom.current().nextDouble() < FLOWER_PARTICLE_CHANCE) {
                         spawnFlowerParticles(world, base);
                     }
 
                     if (isMovingOnGround(entity)) {
                         Location feet = base.clone().add(0.0, 0.1, 0.0);
-                        world.spawnParticle(Particle.CLOUD, feet, 3, 0.2, 0.05, 0.2, 0.01);
+                        world.spawnParticle(Particle.CLOUD, feet, 1, 0.12, 0.03, 0.12, 0.005);
                     }
                 }
             }
-        }, 0L, 5L);
+        }, 0L, 3L);
     }
 
     @Override
@@ -58,10 +62,19 @@ public final class Main extends JavaPlugin {
         // No shutdown action needed.
     }
 
-    private boolean isUnderLeaves(Location location) {
-        Block aboveHead = location.getBlock().getRelative(0, 2, 0);
-        Block canopy = location.getBlock().getRelative(0, 3, 0);
-        return Tag.LEAVES.isTagged(aboveHead.getType()) || Tag.LEAVES.isTagged(canopy.getType());
+    private Block findNearbyLeaves(Location origin) {
+        Block base = origin.getBlock();
+        for (int y = 1; y <= 5; y++) {
+            for (int x = -4; x <= 4; x++) {
+                for (int z = -4; z <= 4; z++) {
+                    Block block = base.getRelative(x, y, z);
+                    if (Tag.LEAVES.isTagged(block.getType())) {
+                        return block;
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     private boolean isMovingOnGround(LivingEntity entity) {
@@ -81,7 +94,12 @@ public final class Main extends JavaPlugin {
 
         Particle.DustOptions dust = FLOWER_DUST.getOrDefault(flower.getType(), DEFAULT_FLOWER_DUST);
         Location source = flower.getLocation().add(0.5, 0.7, 0.5);
-        world.spawnParticle(Particle.DUST, source, 3, 0.2, 0.25, 0.2, 0.0, dust);
+        world.spawnParticle(Particle.DUST, source, 2, 0.12, 0.18, 0.12, 0.0, dust);
+        world.spawnParticle(Particle.END_ROD, source, 1, 0.08, 0.12, 0.08, 0.005);
+    }
+
+    private void spawnTreeParticles(World world, Location source) {
+        world.spawnParticle(Particle.FALLING_DUST, source, 6, 2.2, 0.7, 2.2, 0.0, LEAF_DUST);
     }
 
     private Block findNearbyFlower(Location origin) {
