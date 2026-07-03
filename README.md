@@ -10,32 +10,17 @@
 A lightweight Paper/Spigot plugin that adds ambient particle effects around living entities to make outdoor areas feel more alive and cinematic.
 
 ## Features
-
 - **Leaf drift** under tree canopies using falling dust particles
 - **Flower ambience** with color-matched particle bursts near nearby flowers
 - **Movement dust** around entities moving on the ground
 - **Lightweight loop** scheduled every 5 ticks across loaded worlds
 
 ## Built For
-
 - **Platform:** Paper / Spigot-compatible servers
 - **Minecraft version:** 1.21.11
 - **Language level:** Java 21
 
-## Build
-
-```bash name=build-command.sh
-./gradlew build
-```
-
-## Run Locally
-
-```bash name=run-command.sh
-./gradlew runServer
-```
-
 ## Project Notes
-
 The plugin currently applies effects to **all living entities** in loaded worlds and focuses on simple, always-on ambient visuals rather than commands or configuration.
 
 ## License
