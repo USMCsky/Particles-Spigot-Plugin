@@ -8,15 +8,19 @@ import org.bukkit.Particle;
 import org.bukkit.Tag;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.BlockData;
+import org.bukkit.block.data.Bisected;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
 public final class Main extends JavaPlugin {
@@ -26,16 +30,23 @@ public final class Main extends JavaPlugin {
     private static final int TREE_HORIZONTAL_RADIUS = 6;
     private static final int TREE_VERTICAL_MIN = 1;
     private static final int TREE_VERTICAL_MAX = 5;
-    private static final int FLOWER_HORIZONTAL_RADIUS = 5;
+    private static final int FLOWER_HORIZONTAL_RADIUS = 8;
     private static final int FLOWER_VERTICAL_MIN = -1;
-    private static final int FLOWER_VERTICAL_MAX = 2;
+    private static final int FLOWER_VERTICAL_MAX = 3;
     private static final double TREE_SAMPLE_CHANCE = 0.14D;
-    private static final double FLOWER_SAMPLE_CHANCE = 0.26D;
+    private static final double FLOWER_SAMPLE_CHANCE = 0.42D;
     private static final Particle.DustOptions DEFAULT_FLOWER_DUST = new Particle.DustOptions(Color.fromRGB(255, 170, 210), 0.75F);
+    private static final Set<Material> EXTRA_FLOWERS = EnumSet.of(
+            Material.PINK_PETALS,
+            Material.WILDFLOWERS,
+            Material.OPEN_EYEBLOSSOM,
+            Material.CLOSED_EYEBLOSSOM
+    );
     private static final Map<Material, Particle.DustOptions> FLOWER_DUST = createFlowerDustMap();
 
     @Override
     public void onEnable() {
+        getLogger().info("Enabled ambient particles for leaves, flowers, and movement.");
         Bukkit.getScheduler().runTaskTimer(this, () -> {
             ThreadLocalRandom random = ThreadLocalRandom.current();
             for (World world : Bukkit.getWorlds()) {
@@ -94,14 +105,14 @@ public final class Main extends JavaPlugin {
     }
 
     private void emitFlowerAmbience(World world, Location origin, ThreadLocalRandom random) {
-        List<Block> nearbyFlowers = findNearbyBlocks(origin, Tag.FLOWERS, FLOWER_HORIZONTAL_RADIUS, FLOWER_VERTICAL_MIN, FLOWER_VERTICAL_MAX);
+        List<Block> nearbyFlowers = findNearbyFlowers(origin);
         if (nearbyFlowers.isEmpty()) {
             return;
         }
 
-        int samples = Math.min(2 + (nearbyFlowers.size() / 10), 7);
+        int samples = Math.min(1 + (nearbyFlowers.size() / 10), 4);
         for (int i = 0; i < samples; i++) {
-            if (random.nextDouble() >= FLOWER_SAMPLE_CHANCE) {
+            if (i > 0 && random.nextDouble() >= FLOWER_SAMPLE_CHANCE) {
                 continue;
             }
 
@@ -111,27 +122,76 @@ public final class Main extends JavaPlugin {
     }
 
     private void spawnFlowerParticles(World world, Block flower, ThreadLocalRandom random) {
+        Block sourceBlock = normalizeFlowerBlock(flower);
+        double baseHeight = isTallFlower(sourceBlock) ? 0.7D : 0.45D;
         Particle.DustOptions dust = FLOWER_DUST.getOrDefault(flower.getType(), DEFAULT_FLOWER_DUST);
-        Location source = flower.getLocation().add(
+        Location source = sourceBlock.getLocation().add(
                 0.5 + random.nextDouble(-0.35, 0.35),
-                0.45 + random.nextDouble(0.0, 0.55),
+                baseHeight + random.nextDouble(0.1, 0.7),
                 0.5 + random.nextDouble(-0.35, 0.35)
         );
-        world.spawnParticle(Particle.DUST, source, 1, 0.02, 0.03, 0.02, 0.0, dust);
-        world.spawnParticle(Particle.GLOW, source, 1, 0.04, 0.06, 0.04, 0.0);
+        world.spawnParticle(Particle.DUST, source, 3, 0.16, 0.2, 0.16, 0.0, dust);
+        world.spawnParticle(Particle.END_ROD, source, 1, 0.08, 0.12, 0.08, 0.005);
 
-        if (random.nextDouble() < 0.35D) {
+        if (random.nextDouble() < 0.55D) {
             Location twinkle = source.clone().add(
-                    random.nextDouble(-0.18, 0.18),
-                    random.nextDouble(0.12, 0.35),
-                    random.nextDouble(-0.18, 0.18)
+                    random.nextDouble(-0.22, 0.22),
+                    random.nextDouble(0.1, 0.38),
+                    random.nextDouble(-0.22, 0.22)
             );
-            world.spawnParticle(Particle.DUST, twinkle, 1, 0.0, 0.0, 0.0, 0.0, dust);
+            world.spawnParticle(Particle.GLOW, twinkle, 1, 0.06, 0.08, 0.06, 0.0);
+        }
+
+        if (random.nextDouble() < 0.45D) {
+            Location shimmer = source.clone().add(
+                    random.nextDouble(-0.2, 0.2),
+                    random.nextDouble(0.08, 0.3),
+                    random.nextDouble(-0.2, 0.2)
+            );
+            world.spawnParticle(Particle.DUST, shimmer, 1, 0.0, 0.0, 0.0, 0.0, dust);
         }
     }
 
     private void spawnTreeParticles(World world, Location source) {
         world.spawnParticle(Particle.FALLING_DUST, source, 2, 0.45, 0.18, 0.45, 0.0, LEAF_DUST);
+    }
+
+    private List<Block> findNearbyFlowers(Location origin) {
+        List<Block> matches = new ArrayList<>();
+        Block base = origin.getBlock();
+        for (int y = FLOWER_VERTICAL_MIN; y <= FLOWER_VERTICAL_MAX; y++) {
+            for (int x = -FLOWER_HORIZONTAL_RADIUS; x <= FLOWER_HORIZONTAL_RADIUS; x++) {
+                for (int z = -FLOWER_HORIZONTAL_RADIUS; z <= FLOWER_HORIZONTAL_RADIUS; z++) {
+                    Block block = base.getRelative(x, y, z);
+                    if (isFlowerBlock(block.getType()) && !isTallFlowerTop(block)) {
+                        matches.add(block);
+                    }
+                }
+            }
+        }
+        return matches;
+    }
+
+    private boolean isFlowerBlock(Material type) {
+        return FLOWER_DUST.containsKey(type) || EXTRA_FLOWERS.contains(type) || Tag.FLOWERS.isTagged(type);
+    }
+
+    private Block normalizeFlowerBlock(Block block) {
+        if (isTallFlowerTop(block)) {
+            return block.getRelative(BlockFace.DOWN);
+        }
+        return block;
+    }
+
+    private boolean isTallFlower(Block block) {
+        return block.getBlockData() instanceof Bisected;
+    }
+
+    private boolean isTallFlowerTop(Block block) {
+        if (!(block.getBlockData() instanceof Bisected bisected)) {
+            return false;
+        }
+        return bisected.getHalf() == Bisected.Half.TOP;
     }
 
     private List<Block> findNearbyBlocks(Location origin, Tag<Material> tag, int horizontalRadius, int minY, int maxY) {
@@ -170,6 +230,10 @@ public final class Main extends JavaPlugin {
         map.put(Material.PEONY, dust(255, 144, 181));
         map.put(Material.TORCHFLOWER, dust(255, 135, 30));
         map.put(Material.PITCHER_PLANT, dust(118, 204, 86));
+        map.put(Material.PINK_PETALS, dust(255, 176, 216));
+        map.put(Material.WILDFLOWERS, dust(246, 216, 102));
+        map.put(Material.OPEN_EYEBLOSSOM, dust(255, 171, 74));
+        map.put(Material.CLOSED_EYEBLOSSOM, dust(214, 160, 84));
         return map;
     }
 

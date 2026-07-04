@@ -11,7 +11,7 @@ A lightweight Paper/Spigot plugin that adds ambient particle effects around livi
 
 ## Features
 - **Leaf drift** under tree canopies using falling dust particles.
-- **Flower ambience** with color-matched particle bursts near nearby flowers.
+- **Flower ambience** with color-matched sparkles near flowers in a wider radius.
 - **Movement dust** around entities moving on the ground.
 - **Always-on effects** with no setup or configuration required.
 - **Lightweight scheduler** that runs automatically across loaded worlds.
@@ -25,7 +25,7 @@ A lightweight Paper/Spigot plugin that adds ambient particle effects around livi
 Once installed, the plugin automatically scans loaded worlds and adds subtle particle effects around living entities:
 
 - **Tree ambience:** drifting leaf particles appear when entities are near leaf blocks.
-- **Flower ambience:** soft colored particles appear when entities are near flowers.
+- **Flower ambience:** colored sparkles and glow appear when entities are near flowers.
 - **Movement ambience:** light dust particles appear when grounded entities are moving.
 
 This creates a more lively outdoor atmosphere without requiring players or admins to manually trigger anything.
