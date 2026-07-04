@@ -13,7 +13,9 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
 
+import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -21,14 +23,21 @@ public final class Main extends JavaPlugin {
 
     private static final BlockData LEAF_DUST = Material.OAK_LEAVES.createBlockData();
     private static final double MOVE_THRESHOLD_SQUARED = 0.0036D;
-    private static final double TREE_PARTICLE_CHANCE = 0.55D;
-    private static final double FLOWER_PARTICLE_CHANCE = 0.60D;
-    private static final Particle.DustOptions DEFAULT_FLOWER_DUST = new Particle.DustOptions(Color.fromRGB(255, 170, 210), 1.0F);
+    private static final int TREE_HORIZONTAL_RADIUS = 6;
+    private static final int TREE_VERTICAL_MIN = 1;
+    private static final int TREE_VERTICAL_MAX = 5;
+    private static final int FLOWER_HORIZONTAL_RADIUS = 5;
+    private static final int FLOWER_VERTICAL_MIN = -1;
+    private static final int FLOWER_VERTICAL_MAX = 2;
+    private static final double TREE_SAMPLE_CHANCE = 0.14D;
+    private static final double FLOWER_SAMPLE_CHANCE = 0.26D;
+    private static final Particle.DustOptions DEFAULT_FLOWER_DUST = new Particle.DustOptions(Color.fromRGB(255, 170, 210), 0.75F);
     private static final Map<Material, Particle.DustOptions> FLOWER_DUST = createFlowerDustMap();
 
     @Override
     public void onEnable() {
         Bukkit.getScheduler().runTaskTimer(this, () -> {
+            ThreadLocalRandom random = ThreadLocalRandom.current();
             for (World world : Bukkit.getWorlds()) {
                 for (LivingEntity entity : world.getLivingEntities()) {
                     if (entity.isDead()) {
@@ -36,17 +45,8 @@ public final class Main extends JavaPlugin {
                     }
 
                     Location base = entity.getLocation();
-
-                    if (ThreadLocalRandom.current().nextDouble() < TREE_PARTICLE_CHANCE) {
-                        Block nearbyLeaves = findNearbyLeaves(base);
-                        if (nearbyLeaves != null) {
-                            spawnTreeParticles(world, nearbyLeaves.getLocation().add(0.5, 0.8, 0.5));
-                        }
-                    }
-
-                    if (ThreadLocalRandom.current().nextDouble() < FLOWER_PARTICLE_CHANCE) {
-                        spawnFlowerParticles(world, base);
-                    }
+                    emitTreeAmbience(world, base, random);
+                    emitFlowerAmbience(world, base, random);
 
                     if (isMovingOnGround(entity)) {
                         Location feet = base.clone().add(0.0, 0.1, 0.0);
@@ -54,7 +54,7 @@ public final class Main extends JavaPlugin {
                     }
                 }
             }
-        }, 0L, 3L);
+        }, 0L, 4L);
     }
 
     @Override
@@ -62,19 +62,26 @@ public final class Main extends JavaPlugin {
         // No shutdown action needed.
     }
 
-    private Block findNearbyLeaves(Location origin) {
-        Block base = origin.getBlock();
-        for (int y = 1; y <= 5; y++) {
-            for (int x = -4; x <= 4; x++) {
-                for (int z = -4; z <= 4; z++) {
-                    Block block = base.getRelative(x, y, z);
-                    if (Tag.LEAVES.isTagged(block.getType())) {
-                        return block;
-                    }
-                }
-            }
+    private void emitTreeAmbience(World world, Location origin, ThreadLocalRandom random) {
+        List<Block> nearbyLeaves = findNearbyBlocks(origin, Tag.LEAVES, TREE_HORIZONTAL_RADIUS, TREE_VERTICAL_MIN, TREE_VERTICAL_MAX);
+        if (nearbyLeaves.isEmpty()) {
+            return;
         }
-        return null;
+
+        int samples = Math.min(2 + (nearbyLeaves.size() / 18), 5);
+        for (int i = 0; i < samples; i++) {
+            if (random.nextDouble() >= TREE_SAMPLE_CHANCE) {
+                continue;
+            }
+
+            Block leaf = nearbyLeaves.get(random.nextInt(nearbyLeaves.size()));
+            Location source = leaf.getLocation().add(
+                    0.5 + random.nextDouble(-0.3, 0.3),
+                    0.7 + random.nextDouble(0.0, 0.5),
+                    0.5 + random.nextDouble(-0.3, 0.3)
+            );
+            spawnTreeParticles(world, source);
+        }
     }
 
     private boolean isMovingOnGround(LivingEntity entity) {
@@ -86,35 +93,61 @@ public final class Main extends JavaPlugin {
         return horizontalSpeedSquared > MOVE_THRESHOLD_SQUARED;
     }
 
-    private void spawnFlowerParticles(World world, Location location) {
-        Block flower = findNearbyFlower(location);
-        if (flower == null) {
+    private void emitFlowerAmbience(World world, Location origin, ThreadLocalRandom random) {
+        List<Block> nearbyFlowers = findNearbyBlocks(origin, Tag.FLOWERS, FLOWER_HORIZONTAL_RADIUS, FLOWER_VERTICAL_MIN, FLOWER_VERTICAL_MAX);
+        if (nearbyFlowers.isEmpty()) {
             return;
         }
 
+        int samples = Math.min(2 + (nearbyFlowers.size() / 10), 7);
+        for (int i = 0; i < samples; i++) {
+            if (random.nextDouble() >= FLOWER_SAMPLE_CHANCE) {
+                continue;
+            }
+
+            Block flower = nearbyFlowers.get(random.nextInt(nearbyFlowers.size()));
+            spawnFlowerParticles(world, flower, random);
+        }
+    }
+
+    private void spawnFlowerParticles(World world, Block flower, ThreadLocalRandom random) {
         Particle.DustOptions dust = FLOWER_DUST.getOrDefault(flower.getType(), DEFAULT_FLOWER_DUST);
-        Location source = flower.getLocation().add(0.5, 0.7, 0.5);
-        world.spawnParticle(Particle.DUST, source, 2, 0.12, 0.18, 0.12, 0.0, dust);
-        world.spawnParticle(Particle.END_ROD, source, 1, 0.08, 0.12, 0.08, 0.005);
+        Location source = flower.getLocation().add(
+                0.5 + random.nextDouble(-0.35, 0.35),
+                0.45 + random.nextDouble(0.0, 0.55),
+                0.5 + random.nextDouble(-0.35, 0.35)
+        );
+        world.spawnParticle(Particle.DUST, source, 1, 0.02, 0.03, 0.02, 0.0, dust);
+        world.spawnParticle(Particle.GLOW, source, 1, 0.04, 0.06, 0.04, 0.0);
+
+        if (random.nextDouble() < 0.35D) {
+            Location twinkle = source.clone().add(
+                    random.nextDouble(-0.18, 0.18),
+                    random.nextDouble(0.12, 0.35),
+                    random.nextDouble(-0.18, 0.18)
+            );
+            world.spawnParticle(Particle.DUST, twinkle, 1, 0.0, 0.0, 0.0, 0.0, dust);
+        }
     }
 
     private void spawnTreeParticles(World world, Location source) {
-        world.spawnParticle(Particle.FALLING_DUST, source, 6, 2.2, 0.7, 2.2, 0.0, LEAF_DUST);
+        world.spawnParticle(Particle.FALLING_DUST, source, 2, 0.45, 0.18, 0.45, 0.0, LEAF_DUST);
     }
 
-    private Block findNearbyFlower(Location origin) {
+    private List<Block> findNearbyBlocks(Location origin, Tag<Material> tag, int horizontalRadius, int minY, int maxY) {
+        List<Block> matches = new ArrayList<>();
         Block base = origin.getBlock();
-        for (int y = -1; y <= 1; y++) {
-            for (int x = -2; x <= 2; x++) {
-                for (int z = -2; z <= 2; z++) {
+        for (int y = minY; y <= maxY; y++) {
+            for (int x = -horizontalRadius; x <= horizontalRadius; x++) {
+                for (int z = -horizontalRadius; z <= horizontalRadius; z++) {
                     Block block = base.getRelative(x, y, z);
-                    if (Tag.FLOWERS.isTagged(block.getType())) {
-                        return block;
+                    if (tag.isTagged(block.getType())) {
+                        matches.add(block);
                     }
                 }
             }
         }
-        return null;
+        return matches;
     }
 
     private static Map<Material, Particle.DustOptions> createFlowerDustMap() {
