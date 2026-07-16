@@ -30,12 +30,6 @@ Once installed, the plugin automatically scans loaded worlds and adds subtle par
 
 This creates a more lively outdoor atmosphere without requiring players or admins to manually trigger anything.
 
-## Installation
-1. Download or build the plugin JAR.
-2. Place the JAR in your server's `plugins/` folder.
-3. Start or restart your Paper/Spigot server.
-4. The plugin will begin working automatically after the server finishes loading.
-
 ## Compatibility
 - Paper 1.21.11
 - Spigot-compatible servers using the Paper API level declared by the plugin
